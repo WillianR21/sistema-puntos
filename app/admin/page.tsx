@@ -1,152 +1,127 @@
-'use client';
+"use client";
 
-import { useEffect, useState } from 'react';
-import { supabase } from '../lib/supabase';
+import { useEffect, useState } from "react";
+import { createClient } from "@supabase/supabase-js";
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
 
 interface Cliente {
-  id: string;
   dni: string;
   nombre_completo: string;
   puntos_acumulados: number;
-  creado_en: string;
 }
 
-interface Consumo {
-  id: string;
-  puntos_ganados: number;
-  fecha: string;
-  clientes: { dni: string; nombre_completo: string } | null;
-  codigos_consumo: { codigo: string } | null;
-}
-
-export default function AdminDashboard() {
-  const [topClientes, setTopClientes] = useState<Cliente[]>([]);
-  const [consumos, setConsumos] = useState<Consumo[]>([]);
+export default function Home() {
+  const [ranking, setRanking] = useState<Cliente[]>([]);
   const [cargando, setCargando] = useState(true);
 
-  const cargarDatos = async () => {
-    setCargando(true);
-    
-    // TOP 10 clientes con más puntos acumulados
-    const { data: dataClientes } = await supabase
-      .from('clientes')
-      .select('*')
-      .order('puntos_acumulados', { ascending: false })
-      .limit(10);
-
-    // Historial de los últimos 20 canjes realizados
-    const { data: dataConsumos } = await supabase
-      .from('historial_consumos')
-      .select('id, puntos_ganados, fecha, clientes(dni, nombre_completo), codigos_consumo(codigo)')
-      .order('fecha', { ascending: false })
-      .limit(20);
-
-    if (dataClientes) setTopClientes(dataClientes);
-    if (dataConsumos) setConsumos(dataConsumos as any);
-    setCargando(false);
-  };
-
   useEffect(() => {
-    cargarDatos();
+    const obtenerTop10 = async () => {
+      const { data, error } = await supabase
+        .from("clientes")
+        .select("dni, nombre_completo, puntos_acumulados")
+        .order("puntos_acumulados", { ascending: false })
+        .order("creado_en", { ascending: true })
+        .limit(10);
+
+      if (!error && data) {
+        setRanking(data);
+      }
+      setCargando(false);
+    };
+
+    obtenerTop10();
   }, []);
 
+  // Oculta los primeros 4 dígitos del DNI por privacidad (ej: ****8157)
+  const enmascararDni = (dni: string) => {
+    if (!dni || dni.length < 4) return "****";
+    return "****" + dni.slice(-4);
+  };
+
   return (
-    <main className="min-h-screen bg-slate-900 text-white p-6">
-      <div className="max-w-6xl mx-auto space-y-8">
-        <div className="flex justify-between items-center border-b border-slate-700 pb-4">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">Panel de Control</h1>
-            <p className="text-slate-400 text-sm mt-1">Visualización de puntos acumulados por DNI y registros</p>
-          </div>
-          <button
-            onClick={cargarDatos}
-            className="bg-blue-600 hover:bg-blue-500 active:scale-95 px-5 py-2.5 rounded-xl text-sm font-bold transition-all shadow-lg"
-          >
-            {cargando ? 'CARGANDO...' : 'RECARGAR DATOS'}
-          </button>
+    <main className="min-h-screen bg-slate-950 text-white flex flex-col items-center py-8 px-4">
+      <div className="w-full max-w-lg bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl overflow-hidden">
+        {/* Cabecera estilo Repsol */}
+        <div className="bg-gradient-to-r from-red-600 via-orange-500 to-amber-500 p-6 text-center">
+          <span className="inline-block bg-black/30 text-white text-xs font-bold uppercase tracking-widest px-3 py-1 rounded-full mb-2">
+            Sorteo Finalizado
+          </span>
+          <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white drop-shadow">
+            ¡SE CERRÓ EL SORTEO!
+          </h1>
         </div>
 
-        {/* TABLA: TOP 10 MEJORES CLIENTES */}
-        <div className="bg-slate-800 rounded-2xl border border-slate-700 p-6 shadow-2xl">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-bold text-amber-400 flex items-center gap-2">
-              🏆 RANKING TOP 10 CLIENTES
-            </h2>
-            <span className="text-xs bg-amber-500/10 text-amber-400 border border-amber-500/20 px-3 py-1 rounded-full font-bold">
-              Ordenado por Puntos Acumulados
-            </span>
-          </div>
-
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
-              <thead className="bg-slate-900 text-slate-400 uppercase text-xs">
-                <tr>
-                  <th className="p-3 text-center">Posición</th>
-                  <th className="p-3">DNI / Documento</th>
-                  <th className="p-3">Nombre Completo</th>
-                  <th className="p-3 text-right">Puntos Totales</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-700">
-                {topClientes.length === 0 ? (
-                  <tr>
-                    <td colSpan={4} className="p-4 text-center text-slate-500">
-                      Aún no hay clientes registrados.
-                    </td>
-                  </tr>
-                ) : (
-                  topClientes.map((c, index) => (
-                    <tr key={c.id} className="hover:bg-slate-700/50 transition-colors">
-                      <td className="p-3 text-center font-black text-slate-400">
-                        {index === 0 && '🥇 1°'}
-                        {index === 1 && '🥈 2°'}
-                        {index === 2 && '🥉 3°'}
-                        {index > 2 && `#${index + 1}`}
-                      </td>
-                      <td className="p-3 font-mono font-bold text-slate-200">{c.dni}</td>
-                      <td className="p-3 font-bold uppercase">{c.nombre_completo}</td>
-                      <td className="p-3 text-right">
-                        <span className="bg-emerald-500/20 text-emerald-400 px-4 py-1.5 rounded-xl font-black text-base border border-emerald-500/30">
-                          {c.puntos_acumulados} PTS
-                        </span>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
+        {/* Mensaje principal de aviso */}
+        <div className="p-6 text-center border-b border-slate-800 bg-slate-900/80">
+          <p className="text-lg sm:text-xl font-semibold text-orange-400 mb-2">
+            🏆 Acércate a nuestra estación a reclamar tu premio
+          </p>
+          <p className="text-sm text-slate-300">
+            El registro de códigos ha finalizado. Si figuras en la tabla oficial de ganadores, presenta tu <strong>DNI físico</strong> en caja para validar tu premio.
+          </p>
         </div>
 
-        {/* TABLA: ÚLTIMOS CANJES REGISTRADOS */}
-        <div className="bg-slate-800 rounded-2xl border border-slate-700 p-6 shadow-2xl">
-          <h2 className="text-xl font-bold mb-4 text-blue-400">Historial Reciente de Canjes</h2>
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
-              <thead className="bg-slate-900 text-slate-400 uppercase text-xs">
-                <tr>
-                  <th className="p-3">DNI</th>
-                  <th className="p-3">Nombre</th>
-                  <th className="p-3">Código Ingresado</th>
-                  <th className="p-3">Puntos Sumados</th>
-                  <th className="p-3">Fecha y Hora</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-700">
-                {consumos.map((h) => (
-                  <tr key={h.id} className="hover:bg-slate-700/50 transition-colors">
-                    <td className="p-3 font-mono font-bold text-slate-300">{h.clientes?.dni || 'N/A'}</td>
-                    <td className="p-3 font-bold uppercase">{h.clientes?.nombre_completo || 'N/A'}</td>
-                    <td className="p-3 font-mono text-amber-400 font-bold">{h.codigos_consumo?.codigo || 'N/A'}</td>
-                    <td className="p-3 font-bold text-emerald-400">+{h.puntos_ganados} PTS</td>
-                    <td className="p-3 text-slate-400">
-                      {new Date(h.fecha).toLocaleString('es-PE')}
-                    </td>
+        {/* Tabla del Top 10 Ranking */}
+        <div className="p-6">
+          <h2 className="text-center text-lg font-bold text-white mb-4 flex items-center justify-center gap-2">
+            <span>🏅</span> TABLA OFICIAL - TOP 10 RANKING
+          </h2>
+
+          {cargando ? (
+            <p className="text-center text-slate-400 py-6">Cargando resultados oficiales...</p>
+          ) : ranking.length === 0 ? (
+            <p className="text-center text-slate-400 py-6">No hay participantes registrados.</p>
+          ) : (
+            <div className="overflow-x-auto rounded-xl border border-slate-800">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-slate-800/90 text-xs uppercase text-slate-300 border-b border-slate-700">
+                    <th className="py-3 px-3 text-center">Puesto</th>
+                    <th className="py-3 px-3">Participante</th>
+                    <th className="py-3 px-3 text-center">DNI</th>
+                    <th className="py-3 px-3 text-right">Puntos</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="divide-y divide-slate-800 text-sm">
+                  {ranking.map((cliente, index) => {
+                    const esTop3 = index < 3;
+                    const medalla =
+                      index === 0 ? "🥇" : index === 1 ? "🥈" : index === 2 ? "🥉" : `#${index + 1}`;
+
+                    return (
+                      <tr
+                        key={cliente.dni + index}
+                        className={
+                          index === 0
+                            ? "bg-amber-500/15 font-semibold"
+                            : esTop3
+                            ? "bg-slate-800/40"
+                            : "hover:bg-slate-800/30"
+                        }
+                      >
+                        <td className="py-3 px-3 text-center font-bold text-base">
+                          {medalla}
+                        </td>
+                        <td className="py-3 px-3 uppercase truncate max-w-[160px]">
+                          {cliente.nombre_completo}
+                        </td>
+                        <td className="py-3 px-3 text-center text-slate-400 font-mono text-xs">
+                          {enmascararDni(cliente.dni)}
+                        </td>
+                        <td className="py-3 px-3 text-right font-extrabold text-orange-400">
+                          {cliente.puntos_acumulados} pts
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       </div>
     </main>
