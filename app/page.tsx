@@ -1,107 +1,122 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { supabase } from './lib/supabase';
+import { useEffect, useState } from "react";
+import { createClient } from "@supabase/supabase-js";
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
+
+interface Cliente {
+  dni: string;
+  nombre_completo: string;
+  puntos_acumulados: number;
+}
 
 export default function Home() {
-  const [dni, setDni] = useState('');
-  const [nombre, setNombre] = useState('');
-  const [codigo, setCodigo] = useState('');
-  const [cargando, setCargando] = useState(false);
-  const [mensaje, setMensaje] = useState<{ tipo: 'exito' | 'error'; texto: string } | null>(null);
+  const [ranking, setRanking] = useState<Cliente[]>([]);
+  const [cargando, setCargando] = useState(true);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setMensaje(null);
-    setCargando(true);
+  useEffect(() => {
+    const obtenerTop10 = async () => {
+      const { data, error } = await supabase
+        .from("clientes")
+        .select("dni, nombre_completo, puntos_acumulados")
+        .order("puntos_acumulados", { ascending: false })
+        .order("creado_en", { ascending: true })
+        .limit(10);
 
-    try {
-      const { data, error } = await supabase.rpc('procesar_canje', {
-        p_dni: dni.trim().toUpperCase(),
-        p_nombre: nombre.trim().toUpperCase(),
-        p_codigo: codigo.trim().toUpperCase(),
-      });
-
-      if (error) throw error;
-
-      const resultado = data[0];
-      if (resultado.exito) {
-        setMensaje({ tipo: 'exito', texto: resultado.mensaje });
-        setCodigo('');
-      } else {
-        setMensaje({ tipo: 'error', texto: resultado.mensaje });
+      if (!error && data) {
+        setRanking(data);
       }
-    } catch (err: any) {
-      setMensaje({ tipo: 'error', texto: 'Ocurrió un error inesperado. Inténtalo de nuevo.' });
-    } finally {
       setCargando(false);
-    }
-  };
+    };
+
+    obtenerTop10();
+  }, []);
 
   return (
-    <main className="min-h-screen bg-slate-900 flex items-center justify-center p-4">
-      <div className="w-full max-w-md bg-slate-800 rounded-3xl border border-slate-700 shadow-2xl p-6 space-y-6">
-        <div className="text-center">
-          <h1 className="text-3xl font-extrabold text-white tracking-tight">¡GANA PUNTOS!</h1>
-          <p className="text-slate-400 text-sm mt-1">Ingresa tus datos para registrar tu consumo</p>
+    <main className="min-h-screen bg-slate-950 text-white flex flex-col items-center py-8 px-3 sm:px-4">
+      <div className="w-full max-w-2xl bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl overflow-hidden">
+        {/* Cabecera estilo Repsol */}
+        <div className="bg-gradient-to-r from-red-600 via-orange-500 to-amber-500 p-6 text-center">
+          <span className="inline-block bg-black/30 text-white text-xs font-bold uppercase tracking-widest px-3 py-1 rounded-full mb-2">
+            Sorteo Finalizado
+          </span>
+          <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white drop-shadow">
+            ¡SE CERRÓ EL SORTEO!
+          </h1>
         </div>
 
-        {mensaje && (
-          <div className={`p-4 rounded-2xl text-center font-bold text-sm ${
-            mensaje.tipo === 'exito' 
-              ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30' 
-              : 'bg-rose-500/10 text-rose-400 border border-rose-500/30'
-          }`}>
-            {mensaje.texto}
-          </div>
-        )}
+        {/* Mensaje principal de aviso */}
+        <div className="p-6 text-center border-b border-slate-800 bg-slate-900/80">
+          <p className="text-lg sm:text-xl font-semibold text-orange-400 mb-2">
+            🏆 Acércate a nuestra estación a reclamar tu premio
+          </p>
+          <p className="text-sm text-slate-300">
+            El registro de códigos ha finalizado. Si figuras en la tabla oficial de ganadores, presenta tu <strong>DNI físico</strong> en caja para validar tu premio.
+          </p>
+        </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-2">DNI / DOCUMENTO</label>
-            <input
-              type="text"
-              required
-              pattern="[0-9]{8,15}"
-              placeholder="EJ. 70809010"
-              value={dni}
-              onChange={(e) => setDni(e.target.value.toUpperCase())}
-              className="w-full px-4 py-4 rounded-2xl bg-slate-900 border border-slate-700 text-white font-bold text-lg focus:ring-2 focus:ring-blue-500 focus:outline-none uppercase"
-            />
-          </div>
+        {/* Tabla del Top 10 Ranking */}
+        <div className="p-4 sm:p-6">
+          <h2 className="text-center text-lg font-bold text-white mb-4 flex items-center justify-center gap-2">
+            <span>🏅</span> TABLA OFICIAL - TOP 10 RANKING
+          </h2>
 
-          <div>
-            <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-2">NOMBRE COMPLETO</label>
-            <input
-              type="text"
-              required
-              placeholder="EJ. JUAN PÉREZ"
-              value={nombre}
-              onChange={(e) => setNombre(e.target.value.toUpperCase())}
-              className="w-full px-4 py-4 rounded-2xl bg-slate-900 border border-slate-700 text-white font-bold text-lg focus:ring-2 focus:ring-blue-500 focus:outline-none uppercase"
-            />
-          </div>
+          {cargando ? (
+            <p className="text-center text-slate-400 py-6">Cargando resultados oficiales...</p>
+          ) : ranking.length === 0 ? (
+            <p className="text-center text-slate-400 py-6">No hay participantes registrados.</p>
+          ) : (
+            <div className="overflow-x-auto rounded-xl border border-slate-800">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-slate-800/90 text-xs uppercase text-slate-300 border-b border-slate-700">
+                    <th className="py-3 px-2 sm:px-3 text-center">Puesto</th>
+                    <th className="py-3 px-2 sm:px-3">Participante</th>
+                    <th className="py-3 px-2 sm:px-3 text-center">DNI</th>
+                    <th className="py-3 px-2 sm:px-3 text-right">Puntos</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-800 text-xs sm:text-sm">
+                  {ranking.map((cliente, index) => {
+                    const esTop3 = index < 3;
+                    const medalla =
+                      index === 0 ? "🥇" : index === 1 ? "🥈" : index === 2 ? "🥉" : `#${index + 1}`;
 
-          <div>
-            <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-2">CÓDIGO DE CONSUMO</label>
-            <input
-              type="text"
-              required
-              placeholder="EJ. PROMO50"
-              value={codigo}
-              onChange={(e) => setCodigo(e.target.value.toUpperCase())}
-              className="w-full px-4 py-4 rounded-2xl bg-slate-900 border border-slate-700 text-white font-mono font-bold text-xl tracking-widest focus:ring-2 focus:ring-blue-500 focus:outline-none uppercase"
-            />
-          </div>
-
-          <button
-            type="submit"
-            disabled={cargando}
-            className="w-full bg-blue-600 hover:bg-blue-500 active:scale-95 text-white font-black py-5 rounded-2xl shadow-lg transition-all text-xl uppercase tracking-wider disabled:opacity-50 mt-4"
-          >
-            {cargando ? 'PROCESANDO...' : 'CANJEAR MIS PUNTOS'}
-          </button>
-        </form>
+                    return (
+                      <tr
+                        key={cliente.dni + index}
+                        className={
+                          index === 0
+                            ? "bg-amber-500/15 font-semibold"
+                            : esTop3
+                            ? "bg-slate-800/40"
+                            : "hover:bg-slate-800/30"
+                        }
+                      >
+                        <td className="py-3 px-2 sm:px-3 text-center font-bold text-sm sm:text-base whitespace-nowrap">
+                          {medalla}
+                        </td>
+                        <td className="py-3 px-2 sm:px-3 uppercase break-words leading-snug">
+                          {cliente.nombre_completo}
+                        </td>
+                        <td className="py-3 px-2 sm:px-3 text-center text-slate-200 font-mono whitespace-nowrap">
+                          {cliente.dni}
+                        </td>
+                        <td className="py-3 px-2 sm:px-3 text-right font-extrabold text-orange-400 whitespace-nowrap">
+                          {cliente.puntos_acumulados} pts
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
       </div>
     </main>
   );
