@@ -36,15 +36,9 @@ export default function Home() {
     obtenerTop10();
   }, []);
 
-  // Oculta los primeros 4 dígitos del DNI por privacidad (ej: ****8157)
-  const enmascararDni = (dni: string) => {
-    if (!dni || dni.length < 4) return "****";
-    return "****" + dni.slice(-4);
-  };
-
   return (
-    <main className="min-h-screen bg-slate-950 text-white flex flex-col items-center py-8 px-4">
-      <div className="w-full max-w-lg bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl overflow-hidden">
+    <main className="min-h-screen bg-slate-950 text-white flex flex-col items-center py-8 px-3 sm:px-4">
+      <div className="w-full max-w-2xl bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl overflow-hidden">
         {/* Cabecera estilo Repsol */}
         <div className="bg-gradient-to-r from-red-600 via-orange-500 to-amber-500 p-6 text-center">
           <span className="inline-block bg-black/30 text-white text-xs font-bold uppercase tracking-widest px-3 py-1 rounded-full mb-2">
@@ -66,7 +60,7 @@ export default function Home() {
         </div>
 
         {/* Tabla del Top 10 Ranking */}
-        <div className="p-6">
+        <div className="p-4 sm:p-6">
           <h2 className="text-center text-lg font-bold text-white mb-4 flex items-center justify-center gap-2">
             <span>🏅</span> TABLA OFICIAL - TOP 10 RANKING
           </h2>
@@ -80,13 +74,13 @@ export default function Home() {
               <table className="w-full text-left border-collapse">
                 <thead>
                   <tr className="bg-slate-800/90 text-xs uppercase text-slate-300 border-b border-slate-700">
-                    <th className="py-3 px-3 text-center">Puesto</th>
-                    <th className="py-3 px-3">Participante</th>
-                    <th className="py-3 px-3 text-center">DNI</th>
-                    <th className="py-3 px-3 text-right">Puntos</th>
+                    <th className="py-3 px-2 sm:px-3 text-center">Puesto</th>
+                    <th className="py-3 px-2 sm:px-3">Participante</th>
+                    <th className="py-3 px-2 sm:px-3 text-center">DNI</th>
+                    <th className="py-3 px-2 sm:px-3 text-right">Puntos</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-800 text-sm">
+                <tbody className="divide-y divide-slate-800 text-xs sm:text-sm">
                   {ranking.map((cliente, index) => {
                     const esTop3 = index < 3;
                     const medalla =
@@ -103,16 +97,16 @@ export default function Home() {
                             : "hover:bg-slate-800/30"
                         }
                       >
-                        <td className="py-3 px-3 text-center font-bold text-base">
+                        <td className="py-3 px-2 sm:px-3 text-center font-bold text-sm sm:text-base whitespace-nowrap">
                           {medalla}
                         </td>
-                        <td className="py-3 px-3 uppercase truncate max-w-[160px]">
+                        <td className="py-3 px-2 sm:px-3 uppercase break-words leading-snug">
                           {cliente.nombre_completo}
                         </td>
-                        <td className="py-3 px-3 text-center text-slate-400 font-mono text-xs">
-                          {enmascararDni(cliente.dni)}
+                        <td className="py-3 px-2 sm:px-3 text-center text-slate-200 font-mono whitespace-nowrap">
+                          {cliente.dni}
                         </td>
-                        <td className="py-3 px-3 text-right font-extrabold text-orange-400">
+                        <td className="py-3 px-2 sm:px-3 text-right font-extrabold text-orange-400 whitespace-nowrap">
                           {cliente.puntos_acumulados} pts
                         </td>
                       </tr>
